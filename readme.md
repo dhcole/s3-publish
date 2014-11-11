@@ -24,6 +24,7 @@ Set configuration as a `config.json` file saved to the project's root. Sample:
 - `compress` regex match for files to apply gzip compression
 - `cache` `Cache-control` header value
 
+Uses the AWS Javascript SDK, so it reads your AWS credentials from environment variables or a local file. [See more here](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials).
 
 ## install and run
 
