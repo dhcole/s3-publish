@@ -3,7 +3,7 @@ var fs = require('fs'),
     mime = require('mime'),
     AWS = require('aws-sdk'),
     S3 = require('s3'),
-    config = require('./config.js');
+    config = require('./config.json');
 
 var s3 = new AWS.S3({ params: { Bucket: config.bucket } }),
     s3Ext = S3.createClient( {
@@ -31,7 +31,7 @@ walk(config.directory, function(err, results) {
     fs.readFile(file, function(err, data) {
       if (err) throw err;
 
-      if (config.compress.test(extension)) {
+      if ((new RegExp(config.compress)).test(extension)) {
         zlib.gzip(data, function(err, data) {
           if (err) throw err;
           upload({
