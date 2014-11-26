@@ -24,6 +24,7 @@ Set configuration as a `config.json` file saved to the project's root. Sample:
 - `compress` regex match for files to apply gzip compression
 - `cache` `Cache-control` header value
 
+Uses the official [AWS Node.js SDK](http://aws.amazon.com/sdk-for-node-js/) to access S3. See the [SDK documentation](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials) for setting up access keys.
 
 ## install and run
 
