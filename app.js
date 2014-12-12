@@ -3,7 +3,7 @@ var fs = require('fs'),
     mime = require('mime'),
     AWS = require('aws-sdk'),
     S3 = require('s3'),
-    config = require('./config.json');
+    config = require(process.argv[2]);
 
 var s3 = new AWS.S3({ params: { Bucket: config.bucket } }),
     s3Ext = S3.createClient( {

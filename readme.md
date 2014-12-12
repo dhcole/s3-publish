@@ -8,7 +8,7 @@ Worked by checking a list of remote s3 objects, comparing them with local files 
 
 ## configuration
 
-Set configuration as a `config.json` file saved to the project's root. Sample:
+Set configuration as a json file:
 
 ```json
 {
@@ -28,7 +28,9 @@ Uses the AWS Javascript SDK, so it reads your AWS credentials from environment v
 
 ## install and run
 
+Run with the config file path (e.g. `~/path-to/config.json`) as an argument.
+
 ```
 $ npm install
-$ node app.js
+$ node app.js [config file]
 ```
