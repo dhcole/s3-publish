@@ -2,58 +2,66 @@ var fs = require('fs'),
     zlib = require('zlib'),
     mime = require('mime'),
     AWS = require('aws-sdk'),
-    S3 = require('s3'),
-    config = require(process.argv[2]);
+    S3 = require('s3');
 
-var s3 = new AWS.S3({ params: { Bucket: config.bucket } }),
-    s3Ext = S3.createClient( {
-      s3Client: s3
-    });
+var config, s3, s3Ext;
 
-walk(config.directory, function(err, results) {
-  if (err) throw err;
+if (process.argv[2]) sync(require(process.argv[2]));
+module.exports = sync;
 
-  // Remove s3 files that aren't in local directory
-  var files = results.map(getFilename);
-  diff(files, remove);
+function sync(initialConfig) {
 
-  results.forEach(function(file) {
-    var filename = getFilename(file),
-        contentType = mime.lookup(file),
-        extension = mime.extension(contentType),
-        charset = mime.charsets.lookup(contentType);
+  config = initialConfig;
+  s3 = new AWS.S3({ params: { Bucket: config.bucket } });
+  s3Ext = S3.createClient( {
+    s3Client: s3
+  });
 
-    // Add charset if it's known.
-    if (charset) {
-      contentType += '; charset=' + charset;
-    }
+  walk(config.directory, function(err, results) {
+    if (err) throw err;
 
-    fs.readFile(file, function(err, data) {
-      if (err) throw err;
+    // Remove s3 files that aren't in local directory
+    var files = results.map(getFilename);
+    diff(files, remove);
 
-      if ((new RegExp(config.compress)).test(extension)) {
-        zlib.gzip(data, function(err, data) {
-          if (err) throw err;
+    results.forEach(function(file) {
+      var filename = getFilename(file),
+          contentType = mime.lookup(file),
+          extension = mime.extension(contentType),
+          charset = mime.charsets.lookup(contentType);
+
+      // Add charset if it's known.
+      if (charset) {
+        contentType += '; charset=' + charset;
+      }
+
+      fs.readFile(file, function(err, data) {
+        if (err) throw err;
+
+        if ((new RegExp(config.compress)).test(extension)) {
+          zlib.gzip(data, function(err, data) {
+            if (err) throw err;
+            upload({
+              key: filename,
+              body: data,
+              contentType: contentType,
+              encoding: 'gzip'
+            });
+          });
+        } else {
           upload({
             key: filename,
             body: data,
-            contentType: contentType,
-            encoding: 'gzip'
+            contentType: contentType
           });
-        });
-      } else {
-        upload({
-          key: filename,
-          body: data,
-          contentType: contentType
-        });
-      }
+        }
+
+      });
 
     });
 
-  });
-
 });
+}
 
 function diff(files, cb) {
   var s3Files = [];
