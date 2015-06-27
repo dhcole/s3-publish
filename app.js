@@ -1,23 +1,66 @@
 var fs = require('fs'),
     zlib = require('zlib'),
     mime = require('mime'),
+    async = require('async'),
     AWS = require('aws-sdk'),
-    S3 = require('s3'),
-    config = require(process.argv[2]);
+    S3 = require('s3');
 
-var s3 = new AWS.S3({ params: { Bucket: config.bucket } }),
-    s3Ext = S3.createClient( {
-      s3Client: s3
+var config, s3, s3Ext;
+
+module.exports = sync;
+
+function sync(initialConfig, done) {
+
+  config = initialConfig;
+  s3 = new AWS.S3({ params: { Bucket: config.bucket } });
+  s3Ext = S3.createClient( {
+    s3Client: s3
+  });
+
+  walk(config.directory, function(err, results) {
+    if (err) return done(err);
+
+    async.parallel([
+      // Remove s3 files that aren't in local directory
+      function(next) {
+        var fileNames = results.map(getFilename);
+        diff(fileNames, function(err, files) {
+          if (err) return next(err);
+          remove(files, next);
+        });
+      },
+      // Add or replace new and changed files
+      add.bind(this, results)
+    ], done);
+
+  });
+}
+
+function diff(files, cb) {
+  var s3Files = [];
+
+  s3Ext.listObjects({})
+    .on('error', function(err) {
+      if (err) return cb(err);
+    })
+    .on('data', function(data) {
+      s3Files = s3Files.concat(data.Contents);
+    })
+    .on('end', function() {
+      s3Files = s3Files.map(function(o) { return o.Key; });
+      compare(s3Files);
     });
 
-walk(config.directory, function(err, results) {
-  if (err) throw err;
+  function compare(s3Files) {
+    var difference = s3Files.filter(function(item) {
+          return files.indexOf(item) < 0;
+        });
+    if (cb) cb(null, difference);
+  }
+}
 
-  // Remove s3 files that aren't in local directory
-  var files = results.map(getFilename);
-  diff(files, remove);
-
-  results.forEach(function(file) {
+function add(files, done) {
+  async.each(files, function(file, next) {
     var filename = getFilename(file),
         contentType = mime.lookup(file),
         extension = mime.extension(contentType),
@@ -39,55 +82,29 @@ walk(config.directory, function(err, results) {
             body: data,
             contentType: contentType,
             encoding: 'gzip'
-          });
+          }, next);
         });
       } else {
         upload({
           key: filename,
           body: data,
           contentType: contentType
-        });
+        }, next);
       }
 
     });
 
-  });
+  }, done);
 
-});
-
-function diff(files, cb) {
-  var s3Files = [];
-
-  s3Ext.listObjects({})
-    .on('error', function(err) {
-      if (err) throw(err, err.stack);
-    })
-    .on('data', function(data) {
-      s3Files = s3Files.concat(data.Contents);
-    })
-    .on('end', function() {
-      s3Files = s3Files.map(function(o) { return o.Key; });
-      compare(s3Files);
-    });
-
-  function compare(s3Files) {
-    var difference = s3Files.filter(function(item) {
-          return files.indexOf(item) < 0;
-        });
-    if (cb) cb(difference);
-  }
 }
 
-function remove(files) {
+function remove(files, done) {
   files.forEach(function(file) {
-    s3.deleteObject({ Key: file }, function(err, data) {
-      if (err) throw(err, err.stack); // an error occurred
-      else console.log(data);         // successful response
-    });
+    s3.deleteObject({ Key: file }, done);
   });
 }
 
-function upload(opts) {
+function upload(opts, done) {
   var params = {
         Key: opts.key, /* required */
         Body: opts.body,
@@ -99,10 +116,7 @@ function upload(opts) {
     params.ContentEncoding = opts.encoding;
   }
 
-  s3.putObject(params, function(err, data) {
-    if (err) throw(err, err.stack); // an error occurred
-    else console.log(data);         // successful response
-  });
+  s3.putObject(params, done);
 }
 
 function getFilename(file) {

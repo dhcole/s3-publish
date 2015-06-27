@@ -4,7 +4,7 @@ Simple node.js application that syncs a local directory with a bucket on S3.
 
 Makes serving a static website from S3 easy, especially when used with CloudFront for SSL.
 
-Worked by checking a list of remote s3 objects, comparing them with local files in a specified directory, removing files on s3 but not in the folder, and uploading new or replacing other files. Adds a caching header and applies gzip compression to specified files. 
+Worked by checking a list of remote s3 objects, comparing them with local files in a specified directory, removing files on s3 but not in the folder, and uploading new or replacing other files. Adds a caching header and applies gzip compression to specified files.
 
 ## configuration
 
@@ -33,4 +33,15 @@ Run with the config file path (e.g. `~/path-to/config.json`) as an argument.
 ```
 $ npm install
 $ node app.js [config file]
+```
+
+To use in another application, include as a library with `var s3Publish = require('s3-publish');` and run by passing the config JSON directly:
+
+```js
+s3Publish({
+  "bucket": "my.s3.bucket.name",
+  "directory": "/path/to/my/website/_site",
+  "compress": "html|css|js|json",
+  "cache": "max-age=60"
+});
 ```
