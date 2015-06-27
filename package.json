@@ -3,12 +3,14 @@
   "version": "0.0.0",
   "description": "",
   "main": "app.js",
+  "bin": "./bin/s3-publish.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "dhcole",
   "license": "bsd",
   "dependencies": {
+    "async": "^1.2.1",
     "aws-sdk": "^2.0.25",
     "mime": "^1.2.11",
     "s3": "^4.3.1"

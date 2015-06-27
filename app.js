@@ -1,15 +1,15 @@
 var fs = require('fs'),
     zlib = require('zlib'),
     mime = require('mime'),
+    async = require('async'),
     AWS = require('aws-sdk'),
     S3 = require('s3');
 
 var config, s3, s3Ext;
 
-if (process.argv[2]) sync(require(process.argv[2]));
 module.exports = sync;
 
-function sync(initialConfig) {
+function sync(initialConfig, done) {
 
   config = initialConfig;
   s3 = new AWS.S3({ params: { Bucket: config.bucket } });
@@ -18,49 +18,22 @@ function sync(initialConfig) {
   });
 
   walk(config.directory, function(err, results) {
-    if (err) throw err;
+    if (err) return done(err);
 
-    // Remove s3 files that aren't in local directory
-    var files = results.map(getFilename);
-    diff(files, remove);
+    async.parallel([
+      // Remove s3 files that aren't in local directory
+      function(next) {
+        var fileNames = results.map(getFilename);
+        diff(fileNames, function(err, files) {
+          if (err) return next(err);
+          remove(files, next);
+        });
+      },
+      // Add or replace new and changed files
+      add.bind(this, results)
+    ], done);
 
-    results.forEach(function(file) {
-      var filename = getFilename(file),
-          contentType = mime.lookup(file),
-          extension = mime.extension(contentType),
-          charset = mime.charsets.lookup(contentType);
-
-      // Add charset if it's known.
-      if (charset) {
-        contentType += '; charset=' + charset;
-      }
-
-      fs.readFile(file, function(err, data) {
-        if (err) throw err;
-
-        if ((new RegExp(config.compress)).test(extension)) {
-          zlib.gzip(data, function(err, data) {
-            if (err) throw err;
-            upload({
-              key: filename,
-              body: data,
-              contentType: contentType,
-              encoding: 'gzip'
-            });
-          });
-        } else {
-          upload({
-            key: filename,
-            body: data,
-            contentType: contentType
-          });
-        }
-
-      });
-
-    });
-
-});
+  });
 }
 
 function diff(files, cb) {
@@ -68,7 +41,7 @@ function diff(files, cb) {
 
   s3Ext.listObjects({})
     .on('error', function(err) {
-      if (err) throw(err, err.stack);
+      if (err) return cb(err);
     })
     .on('data', function(data) {
       s3Files = s3Files.concat(data.Contents);
@@ -82,20 +55,56 @@ function diff(files, cb) {
     var difference = s3Files.filter(function(item) {
           return files.indexOf(item) < 0;
         });
-    if (cb) cb(difference);
+    if (cb) cb(null, difference);
   }
 }
 
-function remove(files) {
-  files.forEach(function(file) {
-    s3.deleteObject({ Key: file }, function(err, data) {
-      if (err) throw(err, err.stack); // an error occurred
-      else console.log(data);         // successful response
+function add(files, done) {
+  async.each(files, function(file, next) {
+    var filename = getFilename(file),
+        contentType = mime.lookup(file),
+        extension = mime.extension(contentType),
+        charset = mime.charsets.lookup(contentType);
+
+    // Add charset if it's known.
+    if (charset) {
+      contentType += '; charset=' + charset;
+    }
+
+    fs.readFile(file, function(err, data) {
+      if (err) throw err;
+
+      if ((new RegExp(config.compress)).test(extension)) {
+        zlib.gzip(data, function(err, data) {
+          if (err) throw err;
+          upload({
+            key: filename,
+            body: data,
+            contentType: contentType,
+            encoding: 'gzip'
+          }, next);
+        });
+      } else {
+        upload({
+          key: filename,
+          body: data,
+          contentType: contentType
+        }, next);
+      }
+
     });
+
+  }, done);
+
+}
+
+function remove(files, done) {
+  files.forEach(function(file) {
+    s3.deleteObject({ Key: file }, done);
   });
 }
 
-function upload(opts) {
+function upload(opts, done) {
   var params = {
         Key: opts.key, /* required */
         Body: opts.body,
@@ -107,10 +116,7 @@ function upload(opts) {
     params.ContentEncoding = opts.encoding;
   }
 
-  s3.putObject(params, function(err, data) {
-    if (err) throw(err, err.stack); // an error occurred
-    else console.log(data);         // successful response
-  });
+  s3.putObject(params, done);
 }
 
 function getFilename(file) {
