@@ -15,7 +15,8 @@ Set configuration as a json file:
   "bucket": "my.s3.bucket.name",
   "directory": "/path/to/my/website/_site",
   "compress": "html|css|js|json",
-  "cache": "max-age=60"
+  "cache": "max-age=60",
+  "acl": "private"
 }
 ```
 
@@ -23,6 +24,7 @@ Set configuration as a json file:
 - `directory` local directory to sync with bucket
 - `compress` regex match for files to apply gzip compression
 - `cache` `Cache-control` header value
+- `acl` A canned ACL to apply to all objects (see below)
 
 Uses the AWS Javascript SDK, so it reads your AWS credentials from environment variables or a local file. [See more here](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html#Setting_AWS_Credentials).
 
@@ -34,3 +36,15 @@ Run with the config file path (e.g. `~/path-to/config.json`) as an argument.
 $ npm install
 $ node app.js [config file]
 ```
+
+## ACL Values
+
+The default ACL value is "bucket-owner-full-control" and will be used if no setting is provided. Possible values include:
+
+* "private"
+* "public-read"
+* "public-read-write"
+* "authenticated-read"
+* "aws-exec-read"
+* "bucket-owner-read"
+* "bucket-owner-full-control"

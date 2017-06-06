@@ -92,7 +92,8 @@ function upload(opts) {
         Key: opts.key, /* required */
         Body: opts.body,
         CacheControl: config.cache,
-        ContentType: opts.contentType
+        ContentType: opts.contentType,
+		ACL: config.acl
       };
 
   if (opts.encoding) {
